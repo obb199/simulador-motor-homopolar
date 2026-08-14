@@ -38,7 +38,7 @@ $$\tau = k_t I \qquad \text{FCEM} = k_t \omega \qquad k_t = 2 (f_r B) \ell r$$
 
 Dinâmica real, com inércia e três regimes de atrito — seco, viscoso e arrasto aerodinâmico:
 
-$$J \frac{d\omega}{dt} = \tau - \mathrm{sgn}(\omega) \left( \tau_c + b |\omega| + c \omega^2 \right)$$
+$$J \frac{d\omega}{dt} = \tau - \text{sgn}(\omega) \left( \tau_c + b |\omega| + c \omega^2 \right)$$
 
 Se $\tau \le \tau_c$ o rotor fica **travado**, mesmo com corrente passando — o que acontece de verdade com ímã fraco ou contato ruim.
 
