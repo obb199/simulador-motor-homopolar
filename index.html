@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Simulador 3D interativo de um motor homopolar: pilha AA, ímã de neodímio e laço de fio de cobre, com modelo físico de circuito, torque de Lorentz, dinâmica rotacional e aquecimento." />
+  <title>Simulador 3D de Motor Homopolar</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --bg-2: #121a2f;
+      --panel: rgba(20, 29, 52, 0.78);
+      --panel-strong: #16203b;
+      --card: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.12);
+      --text: #edf2ff;
+      --muted: #a9b6d3;
+      --accent: #67a2ff;
+      --accent-2: #7ce7d1;
+      --accent-text: #08111f;
+      --warning: #ffc46b;
+      --danger: #ff8a8a;
+      --success: #92f2b4;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(103,162,255,0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(124,231,209,0.10), transparent 24%),
+        linear-gradient(180deg, #090d18 0%, var(--bg) 40%, #09101d 100%);
+      padding: 28px;
+    }
+
+    .app {
+      max-width: 1460px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero, .panel, .card, .stat {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      border-radius: 28px;
+      padding: 26px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      background:
+        linear-gradient(135deg, rgba(103,162,255,0.16), rgba(255,255,255,0.03)),
+        var(--panel);
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.6rem, 2vw, 2.4rem);
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 850px;
+      line-height: 1.55;
+    }
+
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      min-width: 260px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 0.92rem;
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      white-space: nowrap;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .stat {
+      border-radius: var(--radius);
+      padding: 18px 18px 16px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-bottom: 10px;
+    }
+
+    .stat .value {
+      font-size: clamp(1.6rem, 2vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat .sub {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.72fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: 28px;
+      overflow: hidden;
+    }
+
+    .viewer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    }
+
+    .viewer-head .left, .viewer-head .right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .viewer-stage {
+      position: relative;
+      min-height: 560px;
+      background:
+        radial-gradient(circle at 50% 35%, rgba(103,162,255,0.12), transparent 34%),
+        linear-gradient(180deg, #08101d, #0d1526 60%, #0b1220 100%);
+    }
+
+    .viewer-stage canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .floating-note {
+      position: absolute;
+      z-index: 2;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(7, 11, 20, 0.62);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .note-top-left { top: 14px; left: 14px; }
+    .note-bottom-left { bottom: 14px; left: 14px; }
+    .note-bottom-right { bottom: 14px; right: 14px; text-align: right; }
+
+    .controls-panel {
+      padding: 20px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 1.18rem;
+      letter-spacing: -0.02em;
+    }
+
+    .section-title span { color: var(--muted); font-size: 0.92rem; }
+
+    .control {
+      display: grid;
+      gap: 8px;
+      padding: 14px 14px 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+    }
+
+    .control-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .control-head label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .control-head strong {
+      color: var(--accent-2);
+      font-size: 0.95rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      outline: none;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 14px 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+    }
+
+    .switch-row label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .switch-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent);
+      flex: none;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 12px 16px;
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); background: rgba(255,255,255,0.08); }
+    button.primary {
+      color: var(--accent-text);
+      background: linear-gradient(135deg, var(--accent), #89bbff);
+      border-color: transparent;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border-radius: 24px;
+      padding: 20px;
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      font-size: 1.12rem;
+      letter-spacing: -0.02em;
+    }
+
+    .card p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .card p:last-child { margin-bottom: 0; }
+    .card em { color: var(--accent-2); font-style: normal; }
+
+    .status-running { color: var(--success); }
+    .status-warning { color: var(--warning); }
+    .status-danger { color: var(--danger); }
+
+    @media (max-width: 1100px) {
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 16px; }
+      .hero { padding: 20px; flex-direction: column; align-items: flex-start; }
+      .hero-badges { justify-content: flex-start; min-width: 0; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .viewer-stage { min-height: 430px; }
+      .viewer-head { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="hp3d-app">
+    <section class="hero">
+      <div>
+        <h1>Simulador 3D de Motor Homopolar</h1>
+        <p>
+          Uma visualização mais elegante e apresentável do experimento com pilha, ímã e fio de cobre.
+          Ajuste os parâmetros, observe a rotação, a corrente, o torque e o aquecimento, e gire a câmera para analisar o conjunto em 3D.
+        </p>
+      </div>
+      <div class="hero-badges">
+        <div class="badge">⚙️ Modelo educacional interativo</div>
+        <div class="badge">🧲 Campo magnético visualizado</div>
+        <div class="badge">🔋 Pilha + fio + ímã em 3D</div>
+      </div>
+    </section>
+
+    <section class="stats-grid" aria-live="polite">
+      <div class="stat">
+        <div class="label">Corrente estimada</div>
+        <div id="hp3d-current" class="value">0,0 A</div>
+        <div id="hp3d-current-sub" class="sub">Circuito aberto</div>
+      </div>
+      <div class="stat">
+        <div class="label">Torque magnético</div>
+        <div id="hp3d-torque" class="value">0,00 mN·m</div>
+        <div id="hp3d-torque-sub" class="sub">Força de Lorentz sobre o fio</div>
+      </div>
+      <div class="stat">
+        <div class="label">Rotação estimada</div>
+        <div id="hp3d-rpm" class="value">0 rpm</div>
+        <div id="hp3d-direction" class="sub">Parado</div>
+      </div>
+      <div class="stat">
+        <div class="label">Aquecimento</div>
+        <div id="hp3d-heat" class="value">0,0 W</div>
+        <div id="hp3d-risk" class="sub">Circuito desligado</div>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="panel">
+        <div class="viewer-head">
+          <div class="left">
+            <span class="badge" id="hp3d-status">Desligado</span>
+            <span class="badge" id="hp3d-view-label">Vista em perspectiva</span>
+          </div>
+          <div class="right button-row">
+            <button class="primary" id="hp3d-power" type="button">Ligar motor</button>
+            <button id="hp3d-reset-camera" type="button">Centralizar câmera</button>
+            <button id="hp3d-reset" type="button">Restaurar valores</button>
+          </div>
+        </div>
+        <div class="viewer-stage" id="hp3d-stage">
+          <canvas id="hp3d-canvas"></canvas>
+          <div class="floating-note note-top-left">Arraste para girar · roda do mouse para zoom</div>
+                            </div>
+      </div>
+
+      <aside class="panel controls-panel">
+        <div class="section-title">
+          <h2>Parâmetros do experimento</h2>
+          <span>modelo aproximado</span>
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="hp3d-voltage">Tensão da pilha</label>
+            <strong id="hp3d-voltage-value">1,5 V</strong>
+          </div>
+          <input id="hp3d-voltage" type="range" min="0.8" max="1.6" value="1.5" step="0.1">
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="hp3d-field">Campo do ímã</label>
+            <strong id="hp3d-field-value">0,80 T</strong>
+          </div>
+          <input id="hp3d-field" type="range" min="0.2" max="1.2" value="0.8" step="0.05">
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="hp3d-contact">Qualidade do contato</label>
+            <strong id="hp3d-contact-value">80%</strong>
+          </div>
+          <input id="hp3d-contact" type="range" min="20" max="100" value="80" step="5">
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="hp3d-resistance">Resistência do fio</label>
+            <strong id="hp3d-resistance-value">0,15 Ω</strong>
+          </div>
+          <input id="hp3d-resistance" type="range" min="0.05" max="0.5" value="0.15" step="0.01">
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="hp3d-friction">Atrito mecânico</label>
+            <strong id="hp3d-friction-value">1,0×</strong>
+          </div>
+          <input id="hp3d-friction" type="range" min="0.5" max="2.5" value="1" step="0.1">
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="hp3d-view">Posição da câmera</label>
+          </div>
+          <select id="hp3d-view">
+            <option value="perspective">Perspectiva</option>
+            <option value="front">Frontal</option>
+            <option value="top">Superior</option>
+            <option value="close">Detalhe do contato</option>
+          </select>
+        </div>
+
+        <div class="switch-row">
+          <label for="hp3d-polarity">Inverter o polo do ímã</label>
+          <input id="hp3d-polarity" type="checkbox">
+        </div>
+
+        <div class="switch-row">
+          <label for="hp3d-battery">Inverter a pilha</label>
+          <input id="hp3d-battery" type="checkbox">
+        </div>
+
+        <div class="switch-row">
+          <label for="hp3d-vectors">Mostrar campo e força</label>
+          <input id="hp3d-vectors" type="checkbox" checked>
+        </div>
+      </aside>
+    </section>
+
+    <section class="info-grid">
+      <article class="card">
+        <h3>Leitura da cena</h3>
+        <p>As linhas ao redor do ímã representam o campo magnético. As setas tangenciais indicam a direção da força que age sobre o fio — elas giram junto com ele, porque a força acompanha o condutor.</p>
+        <p>As partículas luminosas mostram o sentido convencional da corrente: ela desce do terminal positivo pelos <strong>dois</strong> lados do laço até a borda do ímã, e volta pelo ímã até a base da pilha.</p>
+        <p>Inverter o ímã troca o sentido de giro sem mexer na corrente. Inverter a pilha troca os dois. Inverter ambos devolve o giro original.</p>
+      </article>
+
+      <article class="card">
+        <h3>Modelo físico</h3>
+        <p><em>Circuito:</em> I = (ε − FCEM) / (R<sub>interna</sub> + R<sub>fio</sub> + R<sub>contato</sub>), com R<sub>interna</sub> ≈ 0,25 Ω de uma pilha AA alcalina.</p>
+        <p><em>Torque:</em> τ = 2·I·B<sub>radial</sub>·ℓ·r, de F = I·L × B. Só a componente <strong>radial</strong> do campo empurra o fio de lado — é ela que produz rotação, não o campo total.</p>
+        <p><em>Rotação:</em> J·dω/dt = τ − (atrito seco + viscoso + arrasto ∝ ω²). Se o torque não vence o atrito estático, o motor fica travado mesmo com corrente passando.</p>
+        <p><em>Temperatura:</em> C·dT/dt = I²(R<sub>fio</sub> + R<sub>contato</sub>) − k(ω)·(T − T<sub>amb</sub>). Girar mais rápido resfria mais.</p>
+      </article>
+
+      <article class="card">
+        <h3>Segurança no experimento real</h3>
+        <p>O circuito é praticamente um curto: a corrente passa de 3 A e o fio chega a mais de 100 °C em menos de um minuto. Mantenha o contato por poucos segundos e segure o fio só pela parte fria.</p>
+        <p>Evite baterias de lítio — elas entregam corrente muito maior e podem entrar em fuga térmica. Mantenha ímãs de neodímio longe de eletrônicos, cartões magnéticos e crianças pequenas.</p>
+      </article>
+    </section>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const root = document.getElementById('hp3d-app');
+    const canvas = root.querySelector('#hp3d-canvas');
+    const stage = root.querySelector('#hp3d-stage');
+
+    const controlsUI = {
+      voltage: root.querySelector('#hp3d-voltage'),
+      field: root.querySelector('#hp3d-field'),
+      contact: root.querySelector('#hp3d-contact'),
+      resistance: root.querySelector('#hp3d-resistance'),
+      friction: root.querySelector('#hp3d-friction'),
+      polarity: root.querySelector('#hp3d-polarity'),
+      batteryFlip: root.querySelector('#hp3d-battery'),
+      vectors: root.querySelector('#hp3d-vectors'),
+      view: root.querySelector('#hp3d-view')
+    };
+
+    const outputs = {
+      current: root.querySelector('#hp3d-current'),
+      currentSub: root.querySelector('#hp3d-current-sub'),
+      torque: root.querySelector('#hp3d-torque'),
+      torqueSub: root.querySelector('#hp3d-torque-sub'),
+      rpm: root.querySelector('#hp3d-rpm'),
+      heat: root.querySelector('#hp3d-heat'),
+      risk: root.querySelector('#hp3d-risk'),
+      direction: root.querySelector('#hp3d-direction'),
+      status: root.querySelector('#hp3d-status'),
+      viewLabel: root.querySelector('#hp3d-view-label'),
+      voltageValue: root.querySelector('#hp3d-voltage-value'),
+      fieldValue: root.querySelector('#hp3d-field-value'),
+      contactValue: root.querySelector('#hp3d-contact-value'),
+      resistanceValue: root.querySelector('#hp3d-resistance-value'),
+      frictionValue: root.querySelector('#hp3d-friction-value')
+    };
+
+    const powerButton = root.querySelector('#hp3d-power');
+    const resetButton = root.querySelector('#hp3d-reset');
+    const resetCameraButton = root.querySelector('#hp3d-reset-camera');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#0b1220');
+    scene.fog = new THREE.Fog('#0b1220', 10.5, 24);
+
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 50);
+    camera.position.set(5.3, 3.9, 6.7);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const orbit = new OrbitControls(camera, renderer.domElement);
+    orbit.target.set(0, 0.4, 0);
+    orbit.enableDamping = true;
+    orbit.dampingFactor = 0.06;
+    orbit.minDistance = 3.5;
+    orbit.maxDistance = 16;
+    orbit.maxPolarAngle = Math.PI * 0.93;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x233042, 2.0));
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 4.2);
+    keyLight.position.set(4.5, 8, 5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.camera.left = -5;
+    keyLight.shadow.camera.right = 5;
+    keyLight.shadow.camera.top = 7;
+    keyLight.shadow.camera.bottom = -4;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x67a2ff, 2.1);
+    rimLight.position.set(-5, 2.5, -4);
+    scene.add(rimLight);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(7.5, 96),
+      new THREE.MeshStandardMaterial({ color: 0x131c2d, roughness: 0.93, metalness: 0.02 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.72;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(12, 24, 0x3e5074, 0x2d3c56);
+    grid.position.y = -1.70;
+    grid.material.opacity = 0.16;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    const motor = new THREE.Group();
+    scene.add(motor);
+
+    const steel = new THREE.MeshStandardMaterial({ color: 0xb9c1c9, metalness: 0.87, roughness: 0.24 });
+    const steelDark = new THREE.MeshStandardMaterial({ color: 0x4a535d, metalness: 0.82, roughness: 0.28 });
+    const batteryWrap = new THREE.MeshStandardMaterial({ color: 0x222831, metalness: 0.12, roughness: 0.43 });
+    const accentMaterial = new THREE.MeshStandardMaterial({ color: 0x67a2ff, metalness: 0.22, roughness: 0.37 });
+    const copper = new THREE.MeshStandardMaterial({
+      color: 0xb76a2c, metalness: 0.78, roughness: 0.25,
+      emissive: 0xff4400, emissiveIntensity: 0
+    });
+    const magnetOuter = new THREE.MeshStandardMaterial({ color: 0x30363d, metalness: 0.92, roughness: 0.19 });
+
+    // O ímã é o apoio: a base da pilha encosta na face superior dele (y = -1.055),
+    // e as pontas do fio tocam a lateral cilíndrica (raio 1.05).
+    const MAGNET_Y = -1.375;
+    const MAGNET_RADIUS = 1.05;
+
+    const magnet = new THREE.Group();
+    magnet.position.y = MAGNET_Y;
+    motor.add(magnet);
+
+    const magnetBody = new THREE.Mesh(new THREE.CylinderGeometry(MAGNET_RADIUS, MAGNET_RADIUS, 0.58, 72), magnetOuter);
+    magnetBody.castShadow = true;
+    magnetBody.receiveShadow = true;
+    magnet.add(magnetBody);
+
+    const magnetTop = new THREE.Mesh(new THREE.CylinderGeometry(1.01, 1.01, 0.035, 72), steel);
+    magnetTop.position.y = 0.305;
+    magnetTop.castShadow = true;
+    magnet.add(magnetTop);
+
+    const magnetBottom = new THREE.Mesh(new THREE.CylinderGeometry(1.01, 1.01, 0.035, 72), steelDark);
+    magnetBottom.position.y = -0.305;
+    magnet.add(magnetBottom);
+
+    const poleRing = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.055, 16, 72), accentMaterial);
+    poleRing.rotation.x = Math.PI / 2;
+    poleRing.position.y = 0.33;
+    magnet.add(poleRing);
+
+    const battery = new THREE.Group();
+    motor.add(battery);
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.64, 3.25, 72), batteryWrap);
+    body.position.y = 0.68;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    battery.add(body);
+
+    const topCap = new THREE.Mesh(new THREE.CylinderGeometry(0.63, 0.63, 0.12, 72), steel);
+    topCap.position.y = 2.365;
+    topCap.castShadow = true;
+    battery.add(topCap);
+
+    const bottomCap = new THREE.Mesh(new THREE.CylinderGeometry(0.63, 0.63, 0.1, 72), steelDark);
+    bottomCap.position.y = -1.005;
+    battery.add(bottomCap);
+
+    const terminal = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.25, 0.22, 48), steel);
+    terminal.position.y = 2.53;
+    terminal.castShadow = true;
+    battery.add(terminal);
+
+    const labelBand = new THREE.Mesh(new THREE.CylinderGeometry(0.647, 0.647, 0.72, 72, 1, true), accentMaterial);
+    labelBand.position.y = 0.82;
+    battery.add(labelBand);
+
+    const labelCanvas = document.createElement('canvas');
+    labelCanvas.width = 512;
+    labelCanvas.height = 256;
+    const labelCtx = labelCanvas.getContext('2d');
+    labelCtx.fillStyle = '#67a2ff';
+    labelCtx.fillRect(0, 0, 512, 256);
+    labelCtx.fillStyle = '#f3f6ff';
+    labelCtx.textAlign = 'center';
+    labelCtx.font = '600 68px system-ui, sans-serif';
+    labelCtx.fillText('AA  1.5 V', 256, 115);
+    labelCtx.font = '500 40px system-ui, sans-serif';
+    labelCtx.fillText('PILHA', 256, 180);
+
+    const labelTexture = new THREE.CanvasTexture(labelCanvas);
+    labelTexture.colorSpace = THREE.SRGBColorSpace;
+    const labelPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.02, 0.48),
+      new THREE.MeshBasicMaterial({ map: labelTexture, transparent: true, side: THREE.DoubleSide })
+    );
+    labelPlane.position.set(0, 0.82, 0.57);
+    battery.add(labelPlane);
+
+    // A barra vertical some quando a pilha é invertida: o "+" vira "−".
+    const plusV = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.018, 0.18), steelDark);
+    plusV.position.set(0, 2.645, 0);
+    battery.add(plusV);
+    const plusH = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.018, 0.055), steelDark);
+    plusH.position.set(0, 2.646, 0);
+    battery.add(plusH);
+
+    const wireGroup = new THREE.Group();
+    motor.add(wireGroup);
+
+    // Fio contínuo em forma de gaiola: sobe de um lado do ímã, apoia no terminal
+    // positivo (que é o pivô) e desce até o outro lado do ímã. Índice 7 = topo.
+    const wirePoints = [
+      new THREE.Vector3(-1.05, -1.30,  0.00),
+      new THREE.Vector3(-1.16, -1.06,  0.01),
+      new THREE.Vector3(-1.26, -0.60,  0.02),
+      new THREE.Vector3(-1.32,  0.10,  0.04),
+      new THREE.Vector3(-1.22,  1.00,  0.04),
+      new THREE.Vector3(-0.92,  1.92,  0.02),
+      new THREE.Vector3(-0.46,  2.54,  0.01),
+      new THREE.Vector3( 0.00,  2.72,  0.00),
+      new THREE.Vector3( 0.46,  2.54, -0.01),
+      new THREE.Vector3( 0.92,  1.92, -0.02),
+      new THREE.Vector3( 1.22,  1.00, -0.04),
+      new THREE.Vector3( 1.32,  0.10, -0.04),
+      new THREE.Vector3( 1.26, -0.60, -0.02),
+      new THREE.Vector3( 1.16, -1.06, -0.01),
+      new THREE.Vector3( 1.05, -1.30,  0.00)
+    ];
+    const TOP_INDEX = 7;
+
+    const wireCurve = new THREE.CatmullRomCurve3(wirePoints, false, 'catmullrom', 0.3);
+    const wireMesh = new THREE.Mesh(new THREE.TubeGeometry(wireCurve, 260, 0.05, 12, false), copper);
+    wireMesh.castShadow = true;
+    wireMesh.receiveShadow = true;
+    wireGroup.add(wireMesh);
+
+    // Os dois ramos que a corrente percorre em paralelo, ambos do topo para o ímã.
+    const branchCurves = [
+      new THREE.CatmullRomCurve3(wirePoints.slice(0, TOP_INDEX + 1).reverse(), false, 'catmullrom', 0.3),
+      new THREE.CatmullRomCurve3(wirePoints.slice(TOP_INDEX), false, 'catmullrom', 0.3)
+    ];
+
+    const contactMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf2c38b,
+      emissive: 0x7b3c12,
+      emissiveIntensity: 0.18,
+      metalness: 0.65,
+      roughness: 0.24
+    });
+
+    const topContact = new THREE.Mesh(new THREE.SphereGeometry(0.095, 24, 16), contactMaterial);
+    topContact.position.copy(wirePoints[TOP_INDEX]);
+    wireGroup.add(topContact);
+
+    [wirePoints[0], wirePoints[wirePoints.length - 1]].forEach(point => {
+      const edgeContact = new THREE.Mesh(new THREE.SphereGeometry(0.085, 24, 16), contactMaterial);
+      edgeContact.position.copy(point);
+      wireGroup.add(edgeContact);
+    });
+
+    const particleMaterial = new THREE.MeshBasicMaterial({ color: 0xffdfa4, transparent: true, opacity: 0.95 });
+    const currentParticles = [];
+    const PARTICLES_PER_BRANCH = 9;
+    branchCurves.forEach(curve => {
+      for (let i = 0; i < PARTICLES_PER_BRANCH; i += 1) {
+        const particle = new THREE.Mesh(new THREE.SphereGeometry(0.038, 14, 10), particleMaterial);
+        particle.userData.offset = i / PARTICLES_PER_BRANCH;
+        particle.userData.curve = curve;
+        particle.visible = false;
+        wireGroup.add(particle);
+        currentParticles.push(particle);
+      }
+    });
+
+    const fieldGroup = new THREE.Group();
+    motor.add(fieldGroup);
+    const fieldMaterial = new THREE.LineBasicMaterial({ color: 0x7ce7d1, transparent: true, opacity: 0.58 });
+
+    for (let i = 0; i < 8; i += 1) {
+      const angle = i / 8 * Math.PI * 2;
+      const radius = 1.32 + (i % 2) * 0.2;
+      const points = [];
+      for (let j = 0; j <= 64; j += 1) {
+        const t = j / 64 * Math.PI * 2;
+        points.push(new THREE.Vector3(
+          Math.cos(angle) * radius * Math.cos(t),
+          MAGNET_Y + Math.sin(t) * (1.45 + 0.1 * (i % 2)),
+          Math.sin(angle) * radius * Math.cos(t)
+        ));
+      }
+      const curve = new THREE.CatmullRomCurve3(points, true);
+      const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(128));
+      fieldGroup.add(new THREE.Line(geometry, fieldMaterial));
+    }
+
+    // As setas de força ficam dentro do wireGroup: a força acompanha o condutor,
+    // então elas giram junto com o fio, como na realidade.
+    const forceGroup = new THREE.Group();
+    wireGroup.add(forceGroup);
+    const forceArrows = [];
+    [new THREE.Vector3(-1.28, -0.72, 0), new THREE.Vector3(1.28, -0.72, 0)].forEach(origin => {
+      const radial = new THREE.Vector3(origin.x, 0, origin.z).normalize();
+      // -φ̂: sentido horário visto de cima, que é o giro com N para cima e + em cima.
+      const forward = new THREE.Vector3(0, 1, 0).cross(radial).negate();
+      const arrow = new THREE.ArrowHelper(forward, origin, 0.6, 0x67a2ff, 0.2, 0.12);
+      arrow.userData.forward = forward.clone();
+      forceGroup.add(arrow);
+      forceArrows.push(arrow);
+    });
+
+    // ---------------------------------------------------------------------
+    // Modelo físico
+    //
+    // Motor homopolar clássico: pilha AA em pé sobre um ímã de neodímio, com um
+    // laço de cobre que fecha o circuito do terminal positivo até a borda do ímã.
+    // A corrente desce pelos dois ramos do laço; sobre cada trecho vertical age
+    // F = I·L × B. Com L vertical, é a componente RADIAL de B que produz força
+    // tangencial — e ela aponta no mesmo sentido de giro nos dois lados, porque
+    // tanto L quanto r̂ trocam de sinal de um lado para o outro.
+    // ---------------------------------------------------------------------
+    const PHYS = {
+      rInternal: 0.25,      // Ω  — resistência interna típica de uma AA alcalina
+      rContactFloor: 0.02,  // Ω  — resistência de contato mesmo no melhor caso
+      rContactScale: 0.14,  // Ω  — escala da resistência de constrição
+      currentLimit: 6,      // A  — teto prático de curto-circuito de uma AA
+      radialFraction: 0.28, // fração de B que é radial na posição do fio
+      activeLength: 0.012,  // m  — trecho de fio dentro do campo, por ramo
+      leverArm: 0.014,      // m  — raio médio do laço (≈ raio do ímã de 24 mm)
+      branches: 2,          // os dois ramos empurram no mesmo sentido
+      inertia: 4.0e-7,      // kg·m² — laço de cobre de ~2 g a 14 mm do eixo
+      tauStatic: 2.0e-5,    // N·m — atrito seco no apoio da ponta sobre o terminal
+      bViscous: 8.0e-7,     // N·m·s — atrito viscoso do pivô
+      cDrag: 6.5e-9,        // N·m·s² — arrasto aerodinâmico do laço
+      heatCapacity: 0.77,   // J/K — ~2 g de cobre (c = 385 J/kg·K)
+      coolBase: 0.020,      // W/K — convecção natural
+      coolSpin: 8.0e-5,     // W/K por rad/s — convecção forçada pela rotação
+      ambient: 25           // °C
+    };
+
+    let running = false;
+    let omega = 0;                        // rad/s, positivo = anti-horário visto de cima
+    let temperature = PHYS.ambient;
+    let currentA = 0;
+    let torqueNm = 0;
+    let backEmf = 0;
+    let terminalV = 0;
+    let heatW = 0;
+    let stalled = false;
+    let particlePhase = 0;
+    let lastTime = performance.now();
+    let readoutClock = 0;
+
+    const COPPER_COLD = new THREE.Color(0xb76a2c);
+    const COPPER_HOT = new THREE.Color(0xff7a3c);
+    const scratchVector = new THREE.Vector3();
+
+    const formatNumber = (value, digits) => Number(value).toLocaleString('pt-BR', {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    });
+
+    function setStatusText(el, text, level) {
+      el.textContent = text;
+      el.className = 'sub' + (level ? ` status-${level}` : '');
+    }
+
+    function readParams() {
+      const magnetFlipped = controlsUI.polarity.checked;
+      const batteryFlipped = controlsUI.batteryFlip.checked;
+      return {
+        emf: Number(controlsUI.voltage.value),
+        field: Number(controlsUI.field.value),
+        contact: Number(controlsUI.contact.value) / 100,
+        rWire: Number(controlsUI.resistance.value),
+        friction: Number(controlsUI.friction.value),
+        flowSign: batteryFlipped ? -1 : 1,
+        // Com o polo norte para cima e o "+" em cima, o giro é horário visto
+        // de cima, ou seja, negativo em torno de +Y.
+        driveSign: -1 * (magnetFlipped ? -1 : 1) * (batteryFlipped ? -1 : 1)
+      };
+    }
+
+    function stepPhysics(dt, p) {
+      const rContact = PHYS.rContactFloor + PHYS.rContactScale * (1 - p.contact) / Math.max(p.contact, 0.05);
+      const rTotal = PHYS.rInternal + p.rWire + rContact;
+
+      // Constante de motor: τ = kt·I e FCEM = kt·ω usam a mesma constante no SI.
+      const kt = PHYS.branches * (PHYS.radialFraction * p.field) * PHYS.activeLength * PHYS.leverArm;
+
+      // A FCEM só se opõe quando o rotor gira no sentido em que o torque empurra.
+      backEmf = running ? kt * (omega * p.driveSign) : 0;
+      currentA = running
+        ? Math.max(0, Math.min((p.emf - backEmf) / rTotal, PHYS.currentLimit))
+        : 0;
+      terminalV = running ? p.emf - currentA * PHYS.rInternal : p.emf;
+      torqueNm = kt * currentA;
+      heatW = currentA * currentA * rTotal;
+
+      const driveTorque = torqueNm * p.driveSign;
+      const tauC = PHYS.tauStatic * p.friction;
+      const bViscous = PHYS.bViscous * p.friction;
+      const cDrag = PHYS.cDrag * p.friction;
+
+      const spinning = Math.abs(omega) > 1e-3;
+      stalled = running && !spinning && Math.abs(driveTorque) <= tauC;
+
+      if (!spinning && Math.abs(driveTorque) <= tauC) {
+        omega = 0;                                   // o atrito estático segura o rotor
+      } else {
+        const dir = spinning ? Math.sign(omega) : Math.sign(driveTorque);
+        const resist = dir * (tauC + bViscous * Math.abs(omega) + cDrag * omega * omega);
+        const next = omega + (driveTorque - resist) / PHYS.inertia * dt;
+        // O atrito seco freia até parar, mas nunca inverte o giro sozinho.
+        omega = (spinning && Math.sign(next) !== dir && Math.abs(driveTorque) <= tauC) ? 0 : next;
+      }
+
+      // O calor da resistência interna fica na pilha; o fio só sente o que
+      // é dissipado nele e nos contatos. Girar aumenta a convecção.
+      const wireHeat = currentA * currentA * (p.rWire + rContact);
+      const cooling = (PHYS.coolBase + PHYS.coolSpin * Math.abs(omega)) * (temperature - PHYS.ambient);
+      temperature += (wireHeat - cooling) / PHYS.heatCapacity * dt;
+    }
+
+    function syncControlLabels(p) {
+      outputs.voltageValue.textContent = `${formatNumber(p.emf, 1)} V`;
+      outputs.fieldValue.textContent = `${formatNumber(p.field, 2)} T`;
+      outputs.contactValue.textContent = `${Math.round(p.contact * 100)}%`;
+      outputs.resistanceValue.textContent = `${formatNumber(p.rWire, 2)} Ω`;
+      outputs.frictionValue.textContent = `${formatNumber(p.friction, 1)}×`;
+    }
+
+    function updateScene(p) {
+      poleRing.material.color.set(controlsUI.polarity.checked ? 0x7ce7d1 : 0x67a2ff);
+      plusV.visible = !controlsUI.batteryFlip.checked;
+
+      fieldMaterial.opacity = 0.25 + p.field * 0.4;
+      fieldGroup.scale.setScalar(0.88 + p.field * 0.16);
+      fieldGroup.visible = controlsUI.vectors.checked;
+
+      const energized = currentA > 0.01;
+      forceGroup.visible = controlsUI.vectors.checked && energized;
+      forceArrows.forEach(arrow => {
+        arrow.setDirection(scratchVector.copy(arrow.userData.forward).multiplyScalar(-p.driveSign));
+        arrow.setLength(0.32 + torqueNm * 900, 0.2, 0.12);
+      });
+      currentParticles.forEach(particle => { particle.visible = energized; });
+
+      // O cobre esquenta visivelmente: brilho e cor acompanham a temperatura.
+      const glow = THREE.MathUtils.clamp((temperature - 55) / 180, 0, 1);
+      copper.emissiveIntensity = glow * 0.6;
+      copper.color.copy(COPPER_COLD).lerp(COPPER_HOT, glow * 0.55);
+      contactMaterial.emissiveIntensity = 0.18 + glow * 1.1;
+    }
+
+    function updateReadouts() {
+      const rpm = Math.abs(omega) * 60 / (2 * Math.PI);
+      const energized = currentA > 0.01;
+
+      outputs.current.textContent = `${formatNumber(currentA, 2)} A`;
+      outputs.currentSub.textContent = energized
+        ? `Terminais ${formatNumber(terminalV, 2)} V · FCEM ${formatNumber(backEmf * 1000, 0)} mV`
+        : 'Circuito aberto';
+
+      outputs.torque.textContent = `${formatNumber(torqueNm * 1000, 2)} mN·m`;
+      outputs.torqueSub.textContent = stalled
+        ? 'Não vence o atrito estático'
+        : 'Força de Lorentz sobre o fio';
+
+      outputs.rpm.textContent = `${Math.round(rpm).toLocaleString('pt-BR')} rpm`;
+      if (Math.abs(omega) < 0.05) {
+        setStatusText(outputs.direction, stalled ? 'Travado pelo atrito' : 'Parado', stalled ? 'warning' : null);
+      } else {
+        setStatusText(outputs.direction, omega < 0
+          ? 'Sentido horário (visto de cima)'
+          : 'Sentido anti-horário (visto de cima)');
+      }
+
+      outputs.heat.textContent = `${formatNumber(heatW, 1)} W`;
+      const temp = `${Math.round(temperature)} °C`;
+      if (!running && temperature < PHYS.ambient + 3) {
+        setStatusText(outputs.risk, 'Circuito desligado');
+      } else if (temperature < 45) {
+        setStatusText(outputs.risk, `Fio a ${temp} · morno`, 'running');
+      } else if (temperature < 75) {
+        setStatusText(outputs.risk, `Fio a ${temp} · esquentando`, 'warning');
+      } else if (temperature < 110) {
+        setStatusText(outputs.risk, `Fio a ${temp} · quente demais`, 'danger');
+      } else {
+        setStatusText(outputs.risk, `Fio a ${temp} · risco de queimadura`, 'danger');
+      }
+
+      if (!running) {
+        outputs.status.textContent = Math.abs(omega) > 0.05 ? 'Desligado (girando por inércia)' : 'Desligado';
+      } else {
+        outputs.status.textContent = stalled ? 'Travado' : 'Em funcionamento';
+      }
+    }
+
+    function setRunning(next) {
+      running = next;
+      powerButton.textContent = running ? 'Desligar motor' : 'Ligar motor';
+      const p = readParams();
+      syncControlLabels(p);
+      // dt = 0 resolve o circuito sem integrar, para os medidores já mostrarem
+      // os valores certos no instante do clique em vez de zero por um quadro.
+      stepPhysics(0, p);
+      updateScene(p);
+      updateReadouts();
+    }
+
+    const viewPositions = {
+      perspective: { position: new THREE.Vector3(5.3, 3.9, 6.7), target: new THREE.Vector3(0, 0.4, 0), label: 'Vista em perspectiva' },
+      front: { position: new THREE.Vector3(0, 1.0, 8.6), target: new THREE.Vector3(0, 0.25, 0), label: 'Vista frontal' },
+      top: { position: new THREE.Vector3(0.01, 8.6, 0.01), target: new THREE.Vector3(0, 0, 0), label: 'Vista superior' },
+      close: { position: new THREE.Vector3(3.1, 2.6, 3.5), target: new THREE.Vector3(0, 2.15, 0), label: 'Detalhe do contato' }
+    };
+
+    function applyView(name) {
+      const view = viewPositions[name] || viewPositions.perspective;
+      camera.position.copy(view.position);
+      orbit.target.copy(view.target);
+      orbit.update();
+      outputs.viewLabel.textContent = view.label;
+    }
+
+    function updateParticles(delta, p) {
+      if (currentA <= 0.01) return;
+      // A velocidade de deriva acompanha a corrente, não a rotação: o fio pode
+      // estar travado e ainda assim ter corrente passando.
+      particlePhase += delta * (0.15 + currentA * 0.22) * p.flowSign;
+      currentParticles.forEach(particle => {
+        let t = (particle.userData.offset + particlePhase) % 1;
+        if (t < 0) t += 1;
+        particle.userData.curve.getPointAt(t, particle.position);
+      });
+    }
+
+    function resize() {
+      const width = Math.max(stage.clientWidth, 1);
+      const height = Math.max(stage.clientHeight, 1);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+
+    new ResizeObserver(resize).observe(stage);
+    resize();
+
+    powerButton.addEventListener('click', () => setRunning(!running));
+    resetCameraButton.addEventListener('click', () => applyView(controlsUI.view.value));
+    controlsUI.view.addEventListener('change', () => applyView(controlsUI.view.value));
+
+    resetButton.addEventListener('click', () => {
+      controlsUI.voltage.value = '1.5';
+      controlsUI.field.value = '0.8';
+      controlsUI.contact.value = '80';
+      controlsUI.resistance.value = '0.15';
+      controlsUI.friction.value = '1';
+      controlsUI.polarity.checked = false;
+      controlsUI.batteryFlip.checked = false;
+      controlsUI.vectors.checked = true;
+      controlsUI.view.value = 'perspective';
+      omega = 0;
+      temperature = PHYS.ambient;
+      applyView('perspective');
+      setRunning(false);
+    });
+
+    Object.values(controlsUI).forEach(control => {
+      if (control === controlsUI.view) return;
+      control.addEventListener('input', () => {
+        const p = readParams();
+        syncControlLabels(p);
+        updateScene(p);
+      });
+    });
+
+    // Passo fixo curto: com J ≈ 4e-7 kg·m² a integração explícita precisa de
+    // passos bem menores que o intervalo entre quadros para ficar estável.
+    const MAX_SUBSTEP = 0.002;
+
+    function animate(now) {
+      const delta = Math.min(Math.max((now - lastTime) / 1000, 0), 0.05);
+      lastTime = now;
+
+      const p = readParams();
+      if (delta > 0) {
+        const substeps = Math.min(Math.ceil(delta / MAX_SUBSTEP), 40);
+        const h = delta / substeps;
+        for (let i = 0; i < substeps; i += 1) stepPhysics(h, p);
+      }
+
+      wireGroup.rotation.y += omega * delta;
+      updateParticles(delta, p);
+      updateScene(p);
+
+      readoutClock += delta;
+      if (readoutClock >= 0.08) {
+        readoutClock = 0;
+        updateReadouts();
+      }
+
+      orbit.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    applyView('perspective');
+    setRunning(false);
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
