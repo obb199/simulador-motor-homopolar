@@ -2,7 +2,7 @@
 
 Simulador interativo em 3D do motor homopolar clássico: uma pilha AA em pé sobre um ímã de neodímio, com um laço de fio de cobre que fecha o circuito do terminal positivo até a borda do ímã.
 
-**[▶ Abrir o simulador](https://obb199.github.io/simulador-motor-homopolar/)**
+## ▶ https://obb199.github.io/simulador-motor-homopolar/
 
 Página única, sem build. Usa [three.js](https://threejs.org/) 0.178 via CDN com import map.
 
@@ -10,7 +10,7 @@ Página única, sem build. Usa [three.js](https://threejs.org/) 0.178 via CDN co
 
 A corrente sai do terminal positivo, desce pelos **dois** ramos do laço em paralelo e chega à lateral do ímã, voltando por ele até a base da pilha. Sobre cada trecho vertical de fio age a força de Lorentz:
 
-$$\vec{F} = I\,\vec{L} \times \vec{B}$$
+$$\vec{F} = I \vec{L} \times \vec{B}$$
 
 Com $\vec{L}$ vertical, é a **componente radial** de $\vec{B}$ que produz força tangencial — não o campo total. E ela aponta no mesmo sentido de giro nos dois lados, porque tanto $\vec{L}$ quanto $\hat{r}$ trocam de sinal de um ramo para o outro. Por isso os dois ramos somam torque em vez de se cancelarem.
 
@@ -20,36 +20,46 @@ Com o polo norte para cima e o "+" para cima, o giro é **horário visto de cima
 
 O simulador integra o sistema a cada quadro, em subpassos fixos de 2 ms.
 
-**Circuito** — a corrente cai com a força contraeletromotriz e com a resistência de contato:
+### Circuito
 
-$$I = \frac{\varepsilon - \text{FCEM}}{R_\text{interna} + R_\text{fio} + R_\text{contato}}, \qquad R_\text{contato} = 0{,}02 + 0{,}14\,\frac{1-q}{q}$$
+A corrente cai com a força contraeletromotriz e com a resistência de contato, onde $q$ é a qualidade do contato:
 
-**Torque e FCEM** — mesma constante de motor $k_t$ nos dois, como manda o SI:
+$$I = \frac{\varepsilon - \text{FCEM}}{R_\text{interna} + R_\text{fio} + R_\text{contato}}$$
 
-$$\tau = k_t I, \qquad \text{FCEM} = k_t \omega, \qquad k_t = 2 \, (f_r B) \, \ell \, r$$
+$$R_\text{contato} = 0.02 + 0.14 \cdot \frac{1 - q}{q}$$
 
-**Rotação** — dinâmica real, com inércia e três regimes de atrito:
+### Torque e FCEM
 
-$$J \frac{d\omega}{dt} = \tau - \operatorname{sgn}(\omega)\left(\tau_c + b\,|\omega| + c\,\omega^2\right)$$
+Mesma constante de motor $k_t$ nos dois, como manda o SI:
+
+$$\tau = k_t I \qquad \text{FCEM} = k_t \omega \qquad k_t = 2 (f_r B) \ell r$$
+
+### Rotação
+
+Dinâmica real, com inércia e três regimes de atrito — seco, viscoso e arrasto aerodinâmico:
+
+$$J \frac{d\omega}{dt} = \tau - \mathrm{sgn}(\omega) \left( \tau_c + b |\omega| + c \omega^2 \right)$$
 
 Se $\tau \le \tau_c$ o rotor fica **travado**, mesmo com corrente passando — o que acontece de verdade com ímã fraco ou contato ruim.
 
-**Temperatura** — o calor da resistência interna fica na pilha; o fio só sente o que é dissipado nele e nos contatos, e girar aumenta a convecção:
+### Temperatura
 
-$$C \frac{dT}{dt} = I^2 (R_\text{fio} + R_\text{contato}) - \big(k_0 + k_1|\omega|\big)(T - T_\text{amb})$$
+O calor da resistência interna fica na pilha; o fio só sente o que é dissipado nele e nos contatos, e girar aumenta a convecção:
+
+$$C \frac{dT}{dt} = I^2 (R_\text{fio} + R_\text{contato}) - (k_0 + k_1 |\omega|)(T - T_\text{amb})$$
 
 ### Constantes
 
 | Parâmetro | Valor | Origem |
 |---|---|---|
 | $R_\text{interna}$ | 0,25 Ω | pilha AA alcalina típica |
-| $I_\text{máx}$ | 6 A | teto prático de curto-circuito de uma AA |
+| $I_\text{max}$ | 6 A | teto prático de curto-circuito de uma AA |
 | $f_r$ (fração radial de $B$) | 0,28 | componente radial na posição do fio |
 | $\ell$ | 12 mm | trecho de fio dentro do campo, por ramo |
 | $r$ | 14 mm | raio médio do laço (ímã de 24 mm) |
 | $J$ | 4,0 × 10⁻⁷ kg·m² | laço de cobre de ~2 g a 14 mm do eixo |
 | $\tau_c$ | 2,0 × 10⁻⁵ N·m | atrito seco no apoio da ponta sobre o terminal |
-| $C$ | 0,77 J/K | ~2 g de cobre ($c$ = 385 J/kg·K) |
+| $C$ | 0,77 J/K | ~2 g de cobre (c = 385 J/kg·K) |
 
 ### Ordens de grandeza que o modelo produz
 
