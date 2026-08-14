@@ -50,16 +50,44 @@ $$C \frac{dT}{dt} = I^2 (R_\text{fio} + R_\text{contato}) - (k_0 + k_1 |\omega|)
 
 ### Constantes
 
-| Parâmetro | Valor | Origem |
-|---|---|---|
-| $R_\text{interna}$ | 0,25 Ω | pilha AA alcalina típica |
-| $I_\text{max}$ | 6 A | teto prático de curto-circuito de uma AA |
-| $f_r$ (fração radial de $B$) | 0,28 | componente radial na posição do fio |
-| $\ell$ | 12 mm | trecho de fio dentro do campo, por ramo |
-| $r$ | 14 mm | raio médio do laço (ímã de 24 mm) |
-| $J$ | 4,0 × 10⁻⁷ kg·m² | laço de cobre de ~2 g a 14 mm do eixo |
-| $\tau_c$ | 2,0 × 10⁻⁵ N·m | atrito seco no apoio da ponta sobre o terminal |
-| $C$ | 0,77 J/K | ~2 g de cobre (c = 385 J/kg·K) |
+As constantes não têm todas o mesmo peso de evidência, então cada uma está marcada com a sua procedência. A mesma classificação está no código-fonte, em `index.html`, no objeto `PHYS`.
+
+| Procedência | Significado |
+|---|---|
+| **MEDIDO** | valor típico de literatura ou datasheet do componente |
+| **CALCULADO** | deduzido da geometria do modelo ou de propriedade do material |
+| **ESTIMADO** | ordem de grandeza defensável, sem medição direta |
+| **CALIBRADO** | ajustado para reproduzir o comportamento observado em motores reais |
+
+| Parâmetro | Valor | Procedência | Origem |
+|---|---|---|---|
+| $R_\text{interna}$ | 0,25 Ω | MEDIDO | uma AA alcalina nova fica entre 0,15 e 0,3 Ω |
+| $I_\text{max}$ | 6 A | MEDIDO | curto-circuito de uma AA não passa disso |
+| $R_\text{contato}$ (piso) | 0,02 Ω | ESTIMADO | contato cobre-aço, mesmo bem apertado |
+| $R_\text{contato}$ (escala) | 0,14 Ω | **CALIBRADO** | leva o contato de ~0,02 Ω a ~0,58 Ω |
+| $f_r$ (fração radial de $B$) | 0,28 | ESTIMADO | componente radial junto à borda do ímã de disco |
+| $\ell$ | 12 mm | ESTIMADO | o campo cai com ~$1/r^3$, só o trecho vizinho conta |
+| $r$ | 14 mm | CALCULADO | raio do laço na escala do modelo (ímã de 24 mm) |
+| ramos | 2 | EXATO | topologia do circuito |
+| $J$ | 4,0 × 10⁻⁷ kg·m² | CALCULADO | $J \approx m r^2$, com ~2 g de cobre a 14 mm |
+| $\tau_c$ | 2,0 × 10⁻⁵ N·m | **CALIBRADO** | atrito seco da ponta sobre o terminal |
+| $b$ | 8,0 × 10⁻⁷ N·m·s | **CALIBRADO** | atrito viscoso, domina em rotação baixa |
+| $c$ | 6,5 × 10⁻⁹ N·m·s² | **CALIBRADO** | arrasto, domina acima de ~1000 rpm |
+| $C$ | 0,77 J/K | CALCULADO | 2 g de cobre × 385 J/(kg·K) |
+| $k_0$ | 0,020 W/K | **CALIBRADO** | convecção natural com o fio parado |
+| $k_1$ | 8,0 × 10⁻⁵ W/K por rad/s | **CALIBRADO** | convecção forçada pela rotação |
+| $T_\text{amb}$ | 25 °C | CONVENÇÃO | temperatura ambiente de sala |
+
+### Sobre os seis valores calibrados
+
+Os coeficientes de contato, de atrito e de resfriamento não têm como ser derivados de primeiros princípios: dependem de como o arame foi dobrado à mão, do acabamento do terminal onde a ponta se apoia, de quanto o laço aperta o ímã e do formato exato que o fio ficou. Foram ajustados **em conjunto** para que o simulador reproduza quatro fatos observáveis do experimento real:
+
+1. nos valores padrão o motor gira a ~1.290 rpm, dentro da faixa de centenas a poucos milhares de rpm que esses motores atingem;
+2. no ajuste mais favorável chega a ~3.350 rpm, e não além disso;
+3. no ajuste mais desfavorável não parte — ímã fraco somado a contato ruim e atrito alto realmente não vence o atrito estático;
+4. o fio passa de 70 °C em ~30 s, condizente com esses fios ficarem quentes demais para tocar em menos de um minuto.
+
+Mexer nesses seis números muda a rotação e o aquecimento que o simulador mostra. **Não muda nenhuma das relações físicas entre as grandezas** — quem define o comportamento qualitativo são as equações, não a calibração.
 
 ### Ordens de grandeza que o modelo produz
 

@@ -819,24 +819,71 @@
     // F = I·L × B. Com L vertical, é a componente RADIAL de B que produz força
     // tangencial — e ela aponta no mesmo sentido de giro nos dois lados, porque
     // tanto L quanto r̂ trocam de sinal de um lado para o outro.
+    //
+    // ---------------------------------------------------------------------
+    // ORIGEM DAS CONSTANTES
+    //
+    // As constantes abaixo não têm todas o mesmo peso de evidência, então cada
+    // uma está marcada com a sua procedência:
+    //
+    //   [MEDIDO]     valor típico de literatura ou datasheet do componente
+    //   [CALCULADO]  deduzido da geometria do modelo ou de propriedade do material
+    //   [ESTIMADO]   ordem de grandeza defensável, sem medição direta
+    //   [CALIBRADO]  ajustado para o simulador reproduzir o comportamento
+    //                observado em motores homopolares reais
+    //
+    // Seis valores são [CALIBRADO]: rContactScale, os três de atrito (tauStatic,
+    // bViscous, cDrag) e os dois de resfriamento (coolBase, coolSpin). Eles não
+    // têm como ser derivados de primeiros princípios: dependem de como o arame
+    // foi dobrado à mão, do acabamento do terminal onde a ponta se apoia, de
+    // quanto o laço aperta o ímã e do formato exato que o fio ficou. Foram
+    // ajustados em conjunto para que o simulador reproduza quatro fatos
+    // observáveis do experimento real:
+    //
+    //   1. nos valores padrão o motor gira a ~1290 rpm, dentro da faixa de
+    //      centenas a poucos milhares de rpm que esses motores atingem;
+    //   2. no ajuste mais favorável chega a ~3350 rpm, e não além disso;
+    //   3. no ajuste mais desfavorável não parte — ímã fraco somado a contato
+    //      ruim e atrito alto realmente não vence o atrito estático;
+    //   4. o fio passa de 70 °C em ~30 s, condizente com esses fios ficarem
+    //      quentes demais para tocar em menos de um minuto.
+    //
+    // Mexer nesses seis números muda a rotação e o aquecimento que o simulador
+    // mostra. Não muda nenhuma das relações físicas entre as grandezas: quem
+    // define o comportamento qualitativo são as equações, não a calibração.
     // ---------------------------------------------------------------------
     const PHYS = {
-      rInternal: 0.25,      // Ω  — resistência interna típica de uma AA alcalina
-      rContactFloor: 0.02,  // Ω  — resistência de contato mesmo no melhor caso
-      rContactScale: 0.14,  // Ω  — escala da resistência de constrição
-      currentLimit: 6,      // A  — teto prático de curto-circuito de uma AA
-      radialFraction: 0.28, // fração de B que é radial na posição do fio
-      activeLength: 0.012,  // m  — trecho de fio dentro do campo, por ramo
-      leverArm: 0.014,      // m  — raio médio do laço (≈ raio do ímã de 24 mm)
-      branches: 2,          // os dois ramos empurram no mesmo sentido
-      inertia: 4.0e-7,      // kg·m² — laço de cobre de ~2 g a 14 mm do eixo
-      tauStatic: 2.0e-5,    // N·m — atrito seco no apoio da ponta sobre o terminal
-      bViscous: 8.0e-7,     // N·m·s — atrito viscoso do pivô
-      cDrag: 6.5e-9,        // N·m·s² — arrasto aerodinâmico do laço
-      heatCapacity: 0.77,   // J/K — ~2 g de cobre (c = 385 J/kg·K)
-      coolBase: 0.020,      // W/K — convecção natural
-      coolSpin: 8.0e-5,     // W/K por rad/s — convecção forçada pela rotação
-      ambient: 25           // °C
+      // --- circuito ---
+      rInternal: 0.25,      // [MEDIDO]    Ω — uma AA alcalina nova fica entre 0,15 e 0,3 Ω
+      rContactFloor: 0.02,  // [ESTIMADO]  Ω — contato cobre-aço, mesmo bem apertado
+      rContactScale: 0.14,  // [CALIBRADO] Ω — leva o contato de ~0,02 Ω (100%) a ~0,58 Ω
+                            //               (20%), faixa em que a corrente cai o bastante
+                            //               para o motor chegar a travar
+      currentLimit: 6,      // [MEDIDO]    A — curto-circuito de uma AA não passa disso
+
+      // --- acoplamento magnético ---
+      radialFraction: 0.28, // [ESTIMADO]  fração de B que é radial onde o fio passa; num
+                            //               ímã de disco a componente radial junto à borda
+                            //               é parcela pequena do campo de superfície
+      activeLength: 0.012,  // [ESTIMADO]  m — o campo cai com ~1/r³, então só o trecho de
+                            //               fio vizinho ao ímã contribui de fato
+      leverArm: 0.014,      // [CALCULADO] m — raio do laço na escala do modelo 3D, com o
+                            //               ímã de 24 mm de diâmetro
+      branches: 2,          // [EXATO]     topologia: dois ramos em paralelo, somando torque
+
+      // --- mecânica ---
+      inertia: 4.0e-7,      // [CALCULADO] kg·m² — J ≈ m·r², com ~2 g de cobre a 14 mm
+      tauStatic: 2.0e-5,    // [CALIBRADO] N·m — atrito seco da ponta sobre o terminal;
+                            //               é ele que define se o motor parte ou não
+      bViscous: 8.0e-7,     // [CALIBRADO] N·m·s — atrito viscoso, domina em rotação baixa
+      cDrag: 6.5e-9,        // [CALIBRADO] N·m·s² — arrasto aerodinâmico, domina acima de
+                            //               ~1000 rpm e é o que impede a rotação de disparar
+
+      // --- térmica ---
+      heatCapacity: 0.77,   // [CALCULADO] J/K — 2 g de cobre × 385 J/(kg·K)
+      coolBase: 0.020,      // [CALIBRADO] W/K — convecção natural com o fio parado
+      coolSpin: 8.0e-5,     // [CALIBRADO] W/K por rad/s — convecção forçada pela rotação
+      ambient: 25           // [CONVENÇÃO] °C — temperatura ambiente de sala
     };
 
     let running = false;
